@@ -121,7 +121,7 @@ def train():
     valAcc = []
     total_loss = []
 
-    for epoch in range(20):
+    for epoch in range(100):
         # Training loss
         total_loss = []
         for i, batch in enumerate(training_set, 0):
@@ -155,7 +155,7 @@ def train():
         total=0
 
 
-        for batches in trainset:
+        for batches in training_set:
             data,output = batches
             data,output = data.to(device),output.to(device)
             prediction = net50(data)
@@ -187,7 +187,7 @@ def train():
                 'epoch': epoch,
                 'model_state_dict': net50.state_dict(),
                 'optimizer_state_dict': optimizer.state_dict()
-            }, 'resnetlight_rotate_epoch' + str(epoch + 1) + '.pth')
+            }, 'resnet50_epoch_' + str(epoch + 1) + '.pth')
         print('model saved')
 
     return trainLoss, valLoss, trainAcc, valAcc, total_loss
