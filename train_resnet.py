@@ -109,11 +109,11 @@ def train():
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     print("Using ", device)
 
-    resnet50 = ResNet(BottleNeck, [3, 4, 6, 3], 200)
+    resnet50 = ResNet(BaseBlock, [2, 2, 2, 2], 200)
     resnet50.to(device)
 
     cost = nn.CrossEntropyLoss()
-    optimizer = torch.optim.Adam(resnet50.parameters(), 1e-3)
+    optimizer = torch.optim.SGD(resnet50.parameters(), 1e-2, momentum=0.9, weight_decay=0.0001)
 
     trainLoss = []
     valLoss = []
@@ -121,7 +121,7 @@ def train():
     valAcc = []
     total_loss = []
 
-    for epoch in range(20):
+    for epoch in range(100):
         # Training loss
         total_loss = []
         for i, batch in enumerate(training_set, 0):
@@ -155,10 +155,10 @@ def train():
         total=0
 
 
-        for batches in trainset:
+        for batches in training_set:
             data,output = batches
             data,output = data.to(device),output.to(device)
-            prediction = net50(data)
+            prediction = resnet50(data)
             _,prediction = torch.max(prediction.data,1)  #returns max as well as its index
             total += output.size(0)
             correctHits += (prediction==output).sum().item()
@@ -174,7 +174,7 @@ def train():
         for batches in valid_set:
             data,output = batches
             data,output = data.to(device),output.to(device)
-            prediction = net50(data)
+            prediction = resnet50(data)
             _,prediction = torch.max(prediction.data,1)  #returns max as well as its index
             total += output.size(0)
             correctHits += (prediction==output).sum().item()
@@ -185,9 +185,9 @@ def train():
         print('saving models')
         torch.save({
                 'epoch': epoch,
-                'model_state_dict': net50.state_dict(),
+                'model_state_dict': resnet50.state_dict(),
                 'optimizer_state_dict': optimizer.state_dict()
-            }, 'resnetlight_rotate_epoch' + str(epoch + 1) + '.pth')
+            }, 'resnet18_epoch_' + str(epoch + 1) + '.pth')
         print('model saved')
 
     return trainLoss, valLoss, trainAcc, valAcc, total_loss
