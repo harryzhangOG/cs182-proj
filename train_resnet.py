@@ -8,7 +8,7 @@ from torch.utils.data import DataLoader
 from tiny_dataset import TinyImageNet
 from torch.autograd import Variable
 from show_images import show_images_horizontally
-from resnet import BottleNeck, BaseBlock, ResNet
+from resnet import resnet50
 from PIL import ImageFilter
 from PIL import Image
 import cv2
@@ -109,11 +109,11 @@ def train():
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     print("Using ", device)
 
-    resnet50 = ResNet(BottleNeck, [3, 4, 6, 3], 200)
-    resnet50.to(device)
+    net50 = resnet50()
+    net50.to(device)
 
     cost = nn.CrossEntropyLoss()
-    optimizer = torch.optim.Adam(resnet50.parameters(), 1e-3)
+    optimizer = torch.optim.Adam(net50.parameters(), 1e-3)
 
     trainLoss = []
     valLoss = []
@@ -127,7 +127,7 @@ def train():
         for i, batch in enumerate(training_set, 0):
             data, output = batch
             data, output = data.to(device), output.to(device)
-            prediction = resnet50(data)
+            prediction = net50(data)
             loss = cost(prediction, output)
             closs = loss.item()
             total_loss.append(closs)
@@ -142,7 +142,7 @@ def train():
         for i, batch in enumerate(valid_set, 0):
             data, output = batch
             data, output = data.to(device), output.to(device)
-            prediction = resnet50(data)
+            prediction = net50(data)
             loss = cost(prediction, output)
             vloss = loss.item()
             if i % 100 == 0:
