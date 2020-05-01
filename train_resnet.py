@@ -116,13 +116,18 @@ def train():
 
     
     # Now we are using resnet 101
-    net50 = resnet101(pretrained=False)
-    net50.load_state_dict(torch.load('resnet_epoch_79.pth')['model_state_dict'])
+    net50 = resnet101(pretrained=True)
+    state_dict = torch.load('resnet_epoch_99.pth')['model_state_dict']
+    state_dict['fc.weight'] = state_dict.pop('fc.1.weight')
+    state_dict['fc.bias'] = state_dict.pop('fc.1.bias')
+    #net50.load_state_dict(state_dict)
+    num_ftrs = net50.fc.in_features
+    net50.fc = nn.Sequential(nn.Dropout(0.8), nn.Linear(num_ftrs, 200))
     net50.to(device)
 
     cost = nn.CrossEntropyLoss()
-    optimizer = torch.optim.SGD(net50.parameters(), lr=1e-2, weight_decay=5e-4, momentum=0.9)
-    lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=20, gamma=0.5)
+    optimizer = torch.optim.SGD(net50.parameters(), lr=1e-1, weight_decay=5e-4, momentum=0.9)
+    lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.5)
 
     trainLoss = []
     valLoss = []
@@ -132,13 +137,14 @@ def train():
     save_e = 1
 #    lr = 0.01
 
-    for epoch in range(100):
+    for epoch in range(200):
         # Training loss
         running_loss = 0
         total_loss = []
         correctHits = 0
         total=0
         for i, batch in enumerate(training_set, 0):
+            net50.train()
             data, output = batch
             data, output = data.to(device), output.to(device)
             prediction = net50(data)
@@ -163,6 +169,7 @@ def train():
         correctHits = 0
         total=0
         for i, batch in enumerate(valid_set, 0):
+            net50.eval()
             data, output = batch
             data, output = data.to(device), output.to(device)
             prediction = net50(data)
