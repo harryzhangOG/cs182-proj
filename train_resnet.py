@@ -8,9 +8,10 @@ from torch.utils.data import DataLoader
 from tiny_dataset import TinyImageNet
 from torch.autograd import Variable
 from show_images import show_images_horizontally
-from resnet import resnet50
+from resnet import *
 from PIL import ImageFilter
 from PIL import Image
+from tiny_loader import *
 import cv2
 
 # Helper class for adding Gaussian noises to images
@@ -61,6 +62,12 @@ class AddGaussianFilter(object):
         radius = np.random.uniform(self.min_radius, self.max_radius)
         return image.filter(ImageFilter.GaussianBlur(radius)) 
 
+def adjust_learning_rate(optimizer, epoch, lr):
+        """Sets the learning rate to the initial LR decayed by 10 every 10 epochs"""
+        lr = lr * (0.1 ** (epoch // 20))
+        for param_group in optimizer.param_groups:
+            param_group['lr'] = lr
+        return lr
 
 def train():
     # Normalize the data. Not needed if we have batchnorm
@@ -79,116 +86,117 @@ def train():
     augmentation = transforms.RandomApply([
         transforms.RandomHorizontalFlip(),
         transforms.RandomVerticalFlip(),
-        transforms.RandomAffine(10, translate=(0.1, 0.2), scale=(0.8, 1.1), shear=3),
+        transforms.RandomAffine(10, translate=(0.1, 0.2), scale=(0.8, 1.1), shear=2),
         transforms.RandomResizedCrop(64),
         AddGaussianNoise(0., 1.),
-        AddGaussianFilter([0, 1])], p=.7)
+        AddGaussianFilter([0, 1.5])], p=.7)
 
-    training_transform = transforms.Compose([
-        transforms.Lambda(lambda x: x.convert("RGB")),
-        augmentation,
-        transforms.ToTensor(),
-        normalize])
+    #training_transform = transforms.Compose([
+    #    transforms.Lambda(lambda x: x.convert("RGB")),
+    #    augmentation,
+    #    transforms.ToTensor(),
+    #    normalize])
 
-    valid_transform = transforms.Compose([
-        transforms.Lambda(lambda x: x.convert("RGB")),
-        transforms.ToTensor(),
-        normalize])
+    #valid_transform = transforms.Compose([
+    #    transforms.Lambda(lambda x: x.convert("RGB")),
+    #    transforms.ToTensor(),
+    #    normalize])
 
     # EXTRACT THE DATASET FROM OUR CUSTOM DATASET
     root = 'data/tiny-imagenet-200'
-    training_set = TinyImageNet(root, 'train', transform=training_transform, in_memory=False)
-    training_set = torch.utils.data.DataLoader(training_set, batch_size=128)
-    valid_set = TinyImageNet(root, 'val', transform=valid_transform, in_memory=False)
-    valid_set = torch.utils.data.DataLoader(valid_set, batch_size=128)
-    # tmpiter = iter(DataLoader(training_set, batch_size=10, shuffle=True))
-    # for _ in range(5):
-    #     images, labels = tmpiter.next()
-    #     show_images_horizontally(images, un_normalize=True)
+    #training_set = TinyImageNet(root, 'train', transform=training_transform, in_memory=False)
+    #training_set = torch.utils.data.DataLoader(training_set, batch_size=128)
+    #valid_set = TinyImageNet(root, 'val', transform=valid_transform, in_memory=False)
+    #valid_set = torch.utils.data.DataLoader(valid_set, batch_size=128)
+    training_set = train_imagenet_loader(True, augmentation)
+    valid_set = val_imagenet_loader(True)
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     print("Using ", device)
 
-    net50 = resnet50()
+    
+    # Now we are using resnet 101
+    net50 = resnet101(pretrained=False)
+    net50.load_state_dict(torch.load('resnet_epoch_79.pth')['model_state_dict'])
     net50.to(device)
 
     cost = nn.CrossEntropyLoss()
-    optimizer = torch.optim.Adam(net50.parameters(), 1e-3)
+    optimizer = torch.optim.SGD(net50.parameters(), lr=1e-2, weight_decay=5e-4, momentum=0.9)
+    lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=20, gamma=0.5)
 
     trainLoss = []
     valLoss = []
     trainAcc = []
     valAcc = []
     total_loss = []
+    save_e = 1
+#    lr = 0.01
 
     for epoch in range(100):
         # Training loss
+        running_loss = 0
         total_loss = []
+        correctHits = 0
+        total=0
         for i, batch in enumerate(training_set, 0):
             data, output = batch
             data, output = data.to(device), output.to(device)
             prediction = net50(data)
             loss = cost(prediction, output)
             closs = loss.item()
+            running_loss += closs
             total_loss.append(closs)
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
+            total += output.size(0)
+            _, prediction = torch.max(prediction.data, 1)
+            correctHits += (prediction==output).sum().item()
             if i % 100 == 0:
                 trainLoss.append(closs)
                 print('[Epoch %d, Iteration %d] Training Loss: %.5f' % (epoch+1, i, closs))
                 closs = 0
+        
+        trainAcc.append(correctHits / total)
+        print('Training accuracy on epoch ',epoch+1,'= ',str((correctHits/total)*100))
         # Validation loss
+        correctHits = 0
+        total=0
         for i, batch in enumerate(valid_set, 0):
             data, output = batch
             data, output = data.to(device), output.to(device)
             prediction = net50(data)
             loss = cost(prediction, output)
             vloss = loss.item()
+            total += output.size(0)
+            _, prediction = torch.max(prediction.data, 1)
+            correctHits += (prediction==output).sum().item()
             if i % 100 == 0:
                 valLoss.append(vloss)
                 print('[Epoch %d, Iteration %d] Validation Loss: %.5f' % (epoch+1, i, vloss))
                 vloss = 0
-        
+        valAcc.append(correctHits / total)
+        print('Validation accuracy on epoch ',epoch+1,'= ',str((correctHits/total)*100))
+
+        save_e += 1 
         # Calculating Accuracy
         correctHits = 0
         total=0
 
-
-        for batches in training_set:
-            data,output = batches
-            data,output = data.to(device),output.to(device)
-            prediction = net50(data)
-            _,prediction = torch.max(prediction.data,1)  #returns max as well as its index
-            total += output.size(0)
-            correctHits += (prediction==output).sum().item()
-        
-        trainAcc.append(correctHits / total)
-        print('Training accuracy on epoch ',epoch+1,'= ',str((correctHits/total)*100))
+        # Adjust learning rate
+        lr_scheduler.step()
+        for param_group in optimizer.param_groups:
+            print("Current learning rate: ", param_group['lr'])
 
 
-        correctHits = 0
-        total=0
-
-
-        for batches in valid_set:
-            data,output = batches
-            data,output = data.to(device),output.to(device)
-            prediction = net50(data)
-            _,prediction = torch.max(prediction.data,1)  #returns max as well as its index
-            total += output.size(0)
-            correctHits += (prediction==output).sum().item()
-        
-        valAcc.append(correctHits / total)
-        print('Validation accuracy on epoch ',epoch+1,'= ',str((correctHits/total)*100))
-
-        print('saving models')
-        torch.save({
-                'epoch': epoch,
-                'model_state_dict': net50.state_dict(),
-                'optimizer_state_dict': optimizer.state_dict()
-            }, 'resnet50_epoch_' + str(epoch + 1) + '.pth')
-        print('model saved')
+        if save_e % 10 == 0:
+             print('saving models for epoch ' + str(save_e))
+             torch.save({
+                     'epoch': epoch,
+                     'model_state_dict': net50.state_dict(),
+                     'optimizer_state_dict': optimizer.state_dict()
+                 }, 'resnet_epoch_' + str(epoch + 1) + '.pth')
+             print('model saved')
 
     return trainLoss, valLoss, trainAcc, valAcc, total_loss
 
