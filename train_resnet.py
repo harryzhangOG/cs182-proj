@@ -13,6 +13,9 @@ from PIL import ImageFilter
 from PIL import Image
 from tiny_loader import *
 import cv2
+#from torch.utils.tensorboard import SummaryWriter  
+# Set up tensorboard
+#writer = SummaryWriter('/runs')
 
 # Helper class for adding Gaussian noises to images
 class AddGaussianNoise(object):
@@ -117,17 +120,15 @@ def train():
     
     # Now we are using resnet 101
     net50 = resnet101(pretrained=True)
-    state_dict = torch.load('resnet_epoch_99.pth')['model_state_dict']
-    state_dict['fc.weight'] = state_dict.pop('fc.1.weight')
-    state_dict['fc.bias'] = state_dict.pop('fc.1.bias')
-    #net50.load_state_dict(state_dict)
     num_ftrs = net50.fc.in_features
-    net50.fc = nn.Sequential(nn.Dropout(0.8), nn.Linear(num_ftrs, 200))
+    net50.fc = nn.Sequential(nn.Dropout(0.55), nn.Linear(num_ftrs, 200))
+    state_dict = torch.load('resnet_epoch_199.pth')['model_state_dict']
+    net50.load_state_dict(state_dict)
     net50.to(device)
 
     cost = nn.CrossEntropyLoss()
-    optimizer = torch.optim.SGD(net50.parameters(), lr=1e-1, weight_decay=5e-4, momentum=0.9)
-    lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.5)
+    optimizer = torch.optim.SGD(net50.parameters(), lr=0.001, weight_decay=5e-3, momentum=0.85)
+    lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=20, gamma=0.5)
 
     trainLoss = []
     valLoss = []

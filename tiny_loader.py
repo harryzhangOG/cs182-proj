@@ -11,7 +11,7 @@ imagenet_valdir = os.path.join(imagenet_root, 'val')
 imagenet_testdir = os.path.join(imagenet_root, 'test')
 imagenet_mean, imagenet_std = (0.485, 0.456, 0.406), (0.229, 0.224, 0.225)
 
-batch_size = 128
+batch_size = 256
 def train_imagenet_loader(cuda, augmentation):
     kwargs = {"num_workers": 2, "pin_memory": True} if cuda else {}
 
