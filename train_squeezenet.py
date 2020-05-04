@@ -3,7 +3,7 @@ import numbers
 import numpy as np
 import torchvision.transforms as transforms
 import torch.nn as nn
-import torch.nn.functisonal as F
+import torch.nn.functional as F
 from torch.utils.data import DataLoader
 from tiny_dataset import TinyImageNet
 from torch.autograd import Variable
