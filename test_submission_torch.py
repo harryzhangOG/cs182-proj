@@ -17,7 +17,7 @@ def main():
     CLASSES = sorted([item.name for item in data_dir.glob('*')])
     im_height, im_width = 64, 64
 
-    ckpt = torch.load('resnet_epoch_199.pth')
+    ckpt = torch.load('resnet_epoch_199_final.pth')
     model = resnet101(pretrained=False)
     num = model.fc.in_features
     model.fc = nn.Sequential(nn.Dropout(0.5), nn.Linear(num, 200))
