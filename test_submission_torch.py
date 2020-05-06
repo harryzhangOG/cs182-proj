@@ -22,14 +22,13 @@ def main():
     num = model.fc.in_features
     model.fc = nn.Sequential(nn.Dropout(0.5), nn.Linear(num, 200))
     model.load_state_dict(ckpt['model_state_dict'])
-    #model = Net(len(CLASSES), im_height, im_width)
-    #model.load_state_dict(ckpt['net'])
     model.eval()
+    
+    magenet_mean, imagenet_std = (0.485, 0.456, 0.406), (0.229, 0.224, 0.225)
 
-    data_transforms = transforms.Compose([
-        transforms.ToTensor(),
-        transforms.Normalize((0, 0, 0), tuple(np.sqrt((255, 255, 255)))),
-    ])
+    transform = transforms.Compose([
+            transforms.ToTensor(),
+            transforms.Normalize(imagenet_mean, imagenet_std)]))
 
     # Loop through the CSV file and make a prediction for each line
     with open('eval_classified.csv', 'w') as eval_output_file:  # Open the evaluation CSV file for writing
