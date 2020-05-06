@@ -119,7 +119,7 @@ def train():
 
     
     # Now we are using resnet 101
-    net50 = resnet101(pretrained=True)
+    net50 = resnet101(pretrained=False)
     num_ftrs = net50.fc.in_features
     net50.fc = nn.Sequential(nn.Dropout(0.55), nn.Linear(num_ftrs, 200))
     state_dict = torch.load('resnet_epoch_199.pth')['model_state_dict']
@@ -127,7 +127,7 @@ def train():
     net50.to(device)
 
     cost = nn.CrossEntropyLoss()
-    optimizer = torch.optim.SGD(net50.parameters(), lr=0.001, weight_decay=5e-3, momentum=0.85)
+    optimizer = torch.optim.SGD(net50.parameters(), lr=0.00001, weight_decay=1e-4, momentum=0.85)
     lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=20, gamma=0.5)
 
     trainLoss = []
