@@ -5,17 +5,25 @@ import numpy as np
 import torch
 import torchvision.transforms as transforms
 from model import Net
+import torchvision
+from tiny_loader import *
+from torch.utils.data import Dataset
+import torch.nn as nn
 
-
+from resnet import resnet101
 def main():
     # Load the classes
     data_dir = pathlib.Path('./data/tiny-imagenet-200/train/')
     CLASSES = sorted([item.name for item in data_dir.glob('*')])
     im_height, im_width = 64, 64
 
-    ckpt = torch.load('latest.pt')
-    model = Net(len(CLASSES), im_height, im_width)
-    model.load_state_dict(ckpt['net'])
+    ckpt = torch.load('resnet_epoch_199.pth')
+    model = resnet101(pretrained=False)
+    num = model.fc.in_features
+    model.fc = nn.Sequential(nn.Dropout(0.5), nn.Linear(num, 200))
+    model.load_state_dict(ckpt['model_state_dict'])
+    #model = Net(len(CLASSES), im_height, im_width)
+    #model.load_state_dict(ckpt['net'])
     model.eval()
 
     data_transforms = transforms.Compose([
@@ -42,3 +50,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+
