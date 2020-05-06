@@ -42,3 +42,8 @@ This script extracts all the subfolders in the images folder and take them out o
   * t-SNE: t-SNE makes visualization of the projected features. I used the off-the-shelf SKLEARN implementation and it is very slow. One run of t-SNE on the full training dataset takes about 50 minutes, and one run of t-SNE on the full validation dataset takes about 4 minutes. 
   * Filters visualization: In the early stages of the network, it is possible to visualize the learned weights in the network. I wrote a script to extract the convolutional filters in the first layer, and visualize the filters as RGB images. 
   
+## Generate classification csv file 
+* Generate predictions of images listed in ``` eval.csv ``` to ```eval_classified.csv``` by
+``` python test_submission_torch.py eval.csv ```
+
+
