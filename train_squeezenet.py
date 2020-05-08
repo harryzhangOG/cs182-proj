@@ -8,12 +8,15 @@ from torch.utils.data import DataLoader
 from tiny_dataset import TinyImageNet
 from torch.autograd import Variable
 from show_images import show_images_horizontally
-from squeezenet import *
+from resnet import *
 from PIL import ImageFilter
 from PIL import Image
 from tiny_loader import *
 import cv2
-
+from squeezenet import *
+#from torch.utils.tensorboard import SummaryWriter  
+# Set up tensorboard
+#writer = SummaryWriter('/runs')
 
 # Helper class for adding Gaussian noises to images
 class AddGaussianNoise(object):
@@ -111,26 +114,26 @@ def train():
     #valid_set = torch.utils.data.DataLoader(valid_set, batch_size=128)
     training_set = train_imagenet_loader(True, augmentation)
     valid_set = val_imagenet_loader(True)
-
+    
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     print("Using ", device)
 
     
     # Now we are using resnet 101
-    # net50 = resnet101(pretrained=True)
-    # num_ftrs = net50.fc.in_features
-    # net50.fc = nn.Sequential(nn.Dropout(0.55), nn.Linear(num_ftrs, 200))
-    # # state_dict = torch.load('resnet_epoch_199.pth')['model_state_dict']
-    # # net50.load_state_dict(state_dict)
-    # net50.to(device)
+   # net50 = resnet101(pretrained=True)
+   # num_ftrs = net50.fc.in_features
+   # net50.fc = nn.Sequential(nn.Dropout(0.55), nn.Linear(num_ftrs, 200))
+   # state_dict = torch.load('resnet_epoch_199.pth')['model_state_dict']
+   # net50.load_state_dict(state_dict)
+   # net50.to(device)
+    net50 = squeezenet1_1()
+    net50.classifier[1] = nn.Conv2d(512, 200, kernel_size=(1,1), stride=(1,1))
 
-    #squeeze using squeeze net 
-    squeezeNet = squeezenet1_1(pretrained=True)
-    squeezeNet.to(device)
+    net50.to(device)
 
     cost = nn.CrossEntropyLoss()
-    optimizer = torch.optim.SGD(squeezeNet.parameters(), lr=0.001, weight_decay=5e-3, momentum=0.85)
-    lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=20, gamma=0.5)
+    optimizer = torch.optim.SGD(net50.parameters(), lr=0.001, weight_decay=5e-3, momentum=0.85)
+    lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=50, gamma=0.5)
 
     trainLoss = []
     valLoss = []
@@ -140,17 +143,17 @@ def train():
     save_e = 1
 #    lr = 0.01
 
-    for epoch in range(1):
+    for epoch in range(100):
         # Training loss
         running_loss = 0
         total_loss = []
         correctHits = 0
         total=0
         for i, batch in enumerate(training_set, 0):
-            squeezeNet.train()
+            net50.train()
             data, output = batch
             data, output = data.to(device), output.to(device)
-            prediction = squeezeNet(data)
+            prediction = net50(data)
             loss = cost(prediction, output)
             closs = loss.item()
             running_loss += closs
@@ -160,26 +163,33 @@ def train():
             optimizer.step()
             total += output.size(0)
             _, prediction = torch.max(prediction.data, 1)
+            #print(prediction)
+            #print(output)
             correctHits += (prediction==output).sum().item()
             if i % 100 == 0:
                 trainLoss.append(closs)
                 print('[Epoch %d, Iteration %d] Training Loss: %.5f' % (epoch+1, i, closs))
                 closs = 0
-        
+        print("correct hits", correctHits)
+        #print("total", total)
         trainAcc.append(correctHits / total)
         print('Training accuracy on epoch ',epoch+1,'= ',str((correctHits/total)*100))
         # Validation loss
+        
+        valid_set = val_imagenet_loader(True)
         correctHits = 0
         total=0
         for i, batch in enumerate(valid_set, 0):
-            squeezeNet.eval()
+            net50.eval()
             data, output = batch
             data, output = data.to(device), output.to(device)
-            prediction = squeezeNet(data)
+            prediction = net50(data)
             loss = cost(prediction, output)
             vloss = loss.item()
             total += output.size(0)
             _, prediction = torch.max(prediction.data, 1)
+            #print("data",data)
+            #print("output", output)
             correctHits += (prediction==output).sum().item()
             if i % 100 == 0:
                 valLoss.append(vloss)
@@ -203,9 +213,9 @@ def train():
              print('saving models for epoch ' + str(save_e))
              torch.save({
                      'epoch': epoch,
-                     'model_state_dict': squeezeNet.state_dict(),
+                     'model_state_dict': net50.state_dict(),
                      'optimizer_state_dict': optimizer.state_dict()
-                 }, 'squeeze_net_epoch_' + str(epoch + 1) + '.pth')
+                 }, 'sqeeze_epoch_' + str(epoch + 1) + '.pth')
              print('model saved')
 
     return trainLoss, valLoss, trainAcc, valAcc, total_loss
@@ -217,7 +227,8 @@ def train():
 
 if __name__ == "__main__":
     trainLoss, valLoss, trainAcc, valAcc, total_loss = train()
-    np.save('squeeze_trainLoss.npy', trainLoss)
-    np.save('squeeze_valLoss.npy', valLoss)
-    np.save('squeeze_trainAcc.npy', trainAcc)
-    np.save('squeeze_valAcc.npy', valAcc)
+    np.save('sq_trainLoss.npy', trainLoss)
+    np.save('sq_valLoss.npy', valLoss)
+    np.save('sq_trainAcc.npy', trainAcc)
+    np.save('sq_valAcc.npy', valAcc)
+
