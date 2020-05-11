@@ -20,7 +20,7 @@ This script extracts all the subfolders in the images folder and take them out o
 * The dataset extraction step is essentially done in `tiny_loader.py`. The gist is to make use of PyTorch's built-in `ImageFolder`, which takes a directory of directories and treat each sub-directory as the label of images in it.
   
 ## Training Details
-* The classifier's backbone is a ResNet-101 architecture. I compared my implementation with PyTorch's official implementation, and there wasn't much difference.
+* We compare ResNet 101 with ResNet 50. The classifier's backbone is a ResNet-50 architecture. I compared my implementation with PyTorch's official implementation, and there wasn't much difference.
 * After 200 epochs, I modified the last FC layer of the network and added Dropout. Then I train for another 200 epochs.
 * I also wrote a learning rate scheduler. The learning rate of the network decays by a factor of 0.5 each 10 epochs in the first 200 epochs, and then decays by a factor of 0.7 each 20 epochs in the second 200 epochs.
 * The training script also saves the model periodically:
