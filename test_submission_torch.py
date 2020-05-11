@@ -10,15 +10,15 @@ from tiny_loader import *
 from torch.utils.data import Dataset
 import torch.nn as nn
 
-from resnet import resnet101
+from resnet import resnet50, resnet101
 def main():
     # Load the classes
     data_dir = pathlib.Path('./data/tiny-imagenet-200/train/')
     CLASSES = sorted([item.name for item in data_dir.glob('*')])
     im_height, im_width = 64, 64
 
-    ckpt = torch.load('resnet_epoch_199_final.pth')
-    model = resnet101(pretrained=False)
+    ckpt = torch.load('final_50/resnet_epoch_99.pth')
+    model = resnet50(pretrained=False)
     num = model.fc.in_features
     model.fc = nn.Sequential(nn.Dropout(0.5), nn.Linear(num, 200))
     model.load_state_dict(ckpt['model_state_dict'])
@@ -26,9 +26,9 @@ def main():
     
     magenet_mean, imagenet_std = (0.485, 0.456, 0.406), (0.229, 0.224, 0.225)
 
-    transform = transforms.Compose([
+    data_transforms = transforms.Compose([
             transforms.ToTensor(),
-            transforms.Normalize(imagenet_mean, imagenet_std)]))
+            transforms.Normalize(imagenet_mean, imagenet_std)])
 
     # Loop through the CSV file and make a prediction for each line
     with open('eval_classified.csv', 'w') as eval_output_file:  # Open the evaluation CSV file for writing
