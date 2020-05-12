@@ -31,11 +31,11 @@ display_transform = transforms.Compose([
 tensor = preprocess(image)
 
 prediction_var = Variable((tensor.unsqueeze(0)), requires_grad=True)
-model = models.resnet101(pretrained=True)
-# checkpoint = torch.load('resnet_epoch_199.pth', map_location=torch.device('cpu')) 
-# num = model.fc.in_features
-# model.fc = nn.Sequential(nn.Dropout(0.5), nn.Linear(num, 200))
-# model.load_state_dict(checkpoint['model_state_dict'])
+model = models.resnet101(pretrained=False)
+checkpoint = torch.load('resnet_epoch_199.pth', map_location=torch.device('cpu')) 
+num = model.fc.in_features
+model.fc = nn.Sequential(nn.Dropout(0.5), nn.Linear(num, 200))
+model.load_state_dict(checkpoint['model_state_dict'])
 model.eval()
 class SaveFeatures():
     features=None
